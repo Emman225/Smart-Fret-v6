@@ -1,0 +1,54 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart Fret - Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'primary': '#3b82f6', // blue-500
+              'secondary': '#64748b', // slate-500
+              'light-bg': '#f8fafc', // slate-50
+              'sidebar-bg': '#1e293b', // slate-800
+              'sidebar-text': '#cbd5e1', // slate-300
+              'sidebar-hover-bg': '#334155', // slate-700
+              'sidebar-active-text': '#ffffff', // white
+              'dark-card': '#334155', // slate-700
+            },
+          }
+        }
+      }
+    </script>
+<style>
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+    
+    @keyframes scaleUp { from { transform: scale(0.95) translateY(20px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+    .animate-scale-up { animation: scaleUp 0.2s ease-out forwards; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.5",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react-hook-form": "https://aistudiocdn.com/react-hook-form@^7.66.0",
+    "sweetalert2-react-content": "https://aistudiocdn.com/sweetalert2-react-content@^5.1.0",
+    "sweetalert2": "https://aistudiocdn.com/sweetalert2@^11.26.3"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-light-bg">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+{
+  "name": "Smart Fret - Tableau de Bord",
+  "description": "Un tableau de bord d'administration complet pour la gestion des dossiers de fret, avec authentification, opérations CRUD et une interface moderne construite avec React et TailwindCSS.",
+  "requestFramePermissions": []
+}
