@@ -18,7 +18,7 @@ interface CategorieProduitFormModalProps {
 }
 
 const CategorieProduitFormModal: React.FC<CategorieProduitFormModalProps> = ({ isOpen, onClose, categorieId }) => {
-    const { getCategorieProduitById, addCategorieProduit, updateCategorieProduit } = useCategorieProduits();
+    const { getCategorieProduitById, addCategorieProduit, updateCategorieProduit, fetchCategorieProduits } = useCategorieProduits();
     const isEditing = Boolean(categorieId);
 
     const { register, handleSubmit, reset, formState: { errors } } = useForm<CategorieProduitFormInputs>({
@@ -55,23 +55,33 @@ const CategorieProduitFormModal: React.FC<CategorieProduitFormModalProps> = ({ i
         };
     }, [isOpen, categorieId, isEditing, getCategorieProduitById, reset, onClose]);
 
-    const onSubmit: SubmitHandler<CategorieProduitFormInputs> = (data) => {
-        if (isEditing && categorieId) {
-            updateCategorieProduit({ ...data, id: categorieId });
-        } else {
-            addCategorieProduit(data);
+    const onSubmit: SubmitHandler<CategorieProduitFormInputs> = async (data) => {
+        try {
+            if (isEditing && categorieId) {
+                await updateCategorieProduit({ ...data, id: categorieId });
+            } else {
+                await addCategorieProduit(data);
+            }
+            await fetchCategorieProduits();
+            onClose();
+            MySwal.fire({
+                title: 'Succès !',
+                text: `La catégorie a été ${isEditing ? 'mise à jour' : 'créée'} avec succès.`,
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false,
+                background: '#334155',
+                color: '#f8fafc'
+            });
+        } catch (error: any) {
+            MySwal.fire({
+                title: 'Erreur',
+                text: error?.message || 'Une erreur est survenue lors de l\'enregistrement de la catégorie',
+                icon: 'error',
+                background: '#334155',
+                color: '#f8fafc'
+            });
         }
-        
-        onClose();
-        MySwal.fire({
-            title: 'Succès !',
-            text: `La catégorie a été ${isEditing ? 'mise à jour' : 'créée'} avec succès.`,
-            icon: 'success',
-            timer: 2000,
-            showConfirmButton: false,
-            background: '#334155',
-            color: '#f8fafc'
-        });
     };
 
     const FieldWrapper: React.FC<{ label: string; htmlFor: keyof CategorieProduitFormInputs; error?: string; children: React.ReactNode }> = ({ label, htmlFor, error, children }) => (

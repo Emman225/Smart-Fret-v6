@@ -1,28 +1,36 @@
-
 import React, { useState, useMemo } from 'react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { useOrigines } from '../../context/AppContext';
 import { AddIcon, SortIcon, SortAscIcon, SortDescIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, GlobeAltIcon, EditIconAlt, DeleteIconAlt } from '../../components/icons';
-import { Origine } from '../../types';
 import OrigineFormModal from './OrigineFormModal';
 
 const MySwal = withReactContent(Swal);
 
-type SortableKeys = keyof Omit<Origine, 'id'>;
+// Définition des clés triables basées sur l'interface Origine
+type SortableKeys = 'nomPays';
 
 type SortConfig = {
     key: SortableKeys;
     direction: 'ascending' | 'descending';
 } | null;
 
-const SortableHeader: React.FC<{
+// Interface pour les props du composant SortableHeader
+interface SortableHeaderProps {
     column: SortableKeys;
     title: string;
     sortConfig: SortConfig;
     requestSort: (key: SortableKeys) => void;
     className?: string;
-}> = ({ column, title, sortConfig, requestSort, className = '' }) => {
+}
+
+const SortableHeader: React.FC<SortableHeaderProps> = ({ 
+    column, 
+    title, 
+    sortConfig, 
+    requestSort, 
+    className = '' 
+}) => {
     
     const getIcon = () => {
         if (!sortConfig || sortConfig.key !== column) {
@@ -46,7 +54,7 @@ const SortableHeader: React.FC<{
 
 
 const OrigineListPage: React.FC = () => {
-    const { origines, deleteOrigine } = useOrigines();
+    const { origines, deleteOrigine, loadingOrigines, errorOrigines } = useOrigines();
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingOrigineId, setEditingOrigineId] = useState<string | null>(null);
@@ -67,23 +75,29 @@ const OrigineListPage: React.FC = () => {
     };
 
     const processedOrigines = useMemo(() => {
+        // Créer une copie des origines pour éviter de modifier l'état directement
         let filteredOrigines = [...origines];
 
+        // Filtrer par terme de recherche si fourni
         if (searchTerm) {
             const lowercasedFilter = searchTerm.toLowerCase();
-            filteredOrigines = filteredOrigines.filter(item =>
-                item.nomPays.toLowerCase().includes(lowercasedFilter)
+            filteredOrigines = filteredOrigines.filter(item => 
+                item.nomPays?.toLowerCase().includes(lowercasedFilter) ?? false
             );
         }
-        
-        if (sortConfig !== null) {
+
+        // Trier les résultats si une configuration de tri est définie
+        if (sortConfig) {
             filteredOrigines.sort((a, b) => {
-                const aValue = a[sortConfig.key];
-                const bValue = b[sortConfig.key];
-                
-                if (aValue === null || aValue === undefined) return 1;
-                if (bValue === null || bValue === undefined) return -1;
-                
+                // Récupérer les valeurs à comparer en fonction de la clé de tri
+                const aValue = sortConfig.key === 'nomPays' ? a.nomPays : '';
+                const bValue = sortConfig.key === 'nomPays' ? b.nomPays : '';
+
+                // Gérer les valeurs nulles ou indéfinies
+                if (aValue == null) return sortConfig.direction === 'ascending' ? 1 : -1;
+                if (bValue == null) return sortConfig.direction === 'ascending' ? -1 : 1;
+
+                // Effectuer la comparaison en tenant compte de la direction de tri
                 const comparison = String(aValue).localeCompare(String(bValue), 'fr', { numeric: true });
                 return sortConfig.direction === 'ascending' ? comparison : -comparison;
             });
@@ -99,16 +113,25 @@ const OrigineListPage: React.FC = () => {
     }, [processedOrigines, currentPage, itemsPerPage]);
 
     const requestSort = (key: SortableKeys) => {
-        let direction: 'ascending' | 'descending' = 'ascending';
-        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
+        setSortConfig(prevConfig => {
+            // Si on clique sur la même colonne, on inverse le sens de tri
+            if (prevConfig?.key === key) {
+                return {
+                    key,
+                    direction: prevConfig.direction === 'ascending' ? 'descending' : 'ascending'
+                };
+            }
+            // Sinon, on trie par ordre croissant par défaut
+            return {
+                key,
+                direction: 'ascending'
+            };
+        });
         setCurrentPage(1);
     };
 
-    const handleDelete = (id: string, name: string) => {
-        MySwal.fire({
+    const handleDelete = async (id: string, name: string) => {
+        const result = await MySwal.fire({
             title: 'Êtes-vous sûr ?',
             text: `Vous êtes sur le point de supprimer l'origine ${name}. Cette action est irréversible !`,
             icon: 'warning',
@@ -118,19 +141,44 @@ const OrigineListPage: React.FC = () => {
             confirmButtonText: 'Oui, supprimer !',
             cancelButtonText: 'Annuler',
             background: '#334155',
-            color: '#f8fafc'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                deleteOrigine(id);
-                MySwal.fire({
-                   title: 'Supprimé !',
-                   text: "L'origine a été supprimée avec succès.",
-                   icon: 'success',
-                   background: '#334155',
-                   color: '#f8fafc'
-                });
+            color: '#f8fafc',
+            allowOutsideClick: false,
+            showLoaderOnConfirm: true,
+            preConfirm: async () => {
+                try {
+                    await deleteOrigine(id);
+                    return true;
+                } catch (error: any) {
+                    const errorMessage = (error as Error).message || 'Une erreur est survenue lors de la suppression';
+                    throw new Error(errorMessage);
+                }
             }
         });
+
+        if (result.isConfirmed) {
+            try {
+                // Attendre la fin de la promesse preConfirm
+                if (result.value) {
+                    await MySwal.fire({
+                        title: 'Supprimé !',
+                        text: `L'origine ${name} a été supprimée avec succès.`,
+                        icon: 'success',
+                        confirmButtonColor: '#3085d6',
+                        background: '#334155',
+                        color: '#f8fafc'
+                    });
+                }
+            } catch (error: any) {
+                await MySwal.fire({
+                    title: 'Erreur',
+                    text: (error as Error).message || 'Une erreur est survenue lors de la suppression',
+                    icon: 'error',
+                    confirmButtonColor: '#3085d6',
+                    background: '#334155',
+                    color: '#f8fafc'
+                });
+            }
+        }
     };
 
     const startEntry = processedOrigines.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
@@ -163,16 +211,34 @@ const OrigineListPage: React.FC = () => {
         return [...new Set(pages)]; // Remove duplicates
     };
 
+    if (loadingOrigines) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            </div>
+        );
+    }
+
+    if (errorOrigines) {
+        return (
+            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
+                <p className="font-bold">Erreur</p>
+                <p>{errorOrigines}</p>
+            </div>
+        );
+    }
+
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold text-slate-800">Gestion des Origines</h1>
+        <div className="container mx-auto px-4 py-6">
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold text-white">Gestion des Origines</h1>
                 <button
                     onClick={() => handleOpenModal()}
-                    className="flex items-center bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-all duration-300 text-sm font-medium shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    disabled={loadingOrigines}
                 >
-                    <AddIcon />
-                    Ajouter une origine
+                    <AddIcon className="w-5 h-5 mr-2" />
+                    {loadingOrigines ? 'Chargement...' : 'Ajouter une origine'}
                 </button>
             </div>
 
@@ -218,20 +284,36 @@ const OrigineListPage: React.FC = () => {
                     <table className="w-full text-sm text-left text-slate-600">
                         <thead className="text-xs font-semibold text-sidebar-text bg-sidebar-bg uppercase">
                             <tr>
-                                <SortableHeader column="nomPays" title="Nom du pays" sortConfig={sortConfig} requestSort={requestSort} />
+                                <th scope="col" className="px-6 py-2 cursor-pointer select-none group" onClick={() => requestSort('nomPays')}>
+                                    <div className="flex items-center space-x-2">
+                                        <span>Nom du pays</span>
+                                        {sortConfig?.key === 'nomPays' && (
+                                            <span className="text-slate-400 group-hover:text-white transition-colors">
+                                                {sortConfig.direction === 'ascending' ? <SortAscIcon /> : <SortDescIcon />}
+                                            </span>
+                                        )}
+                                        {sortConfig?.key !== 'nomPays' && (
+                                            <span className="text-slate-400 group-hover:text-white transition-colors">
+                                                <SortIcon />
+                                            </span>
+                                        )}
+                                    </div>
+                                </th>
                                 <th scope="col" className="px-6 py-2 text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="align-middle">
                             {paginatedOrigines.length > 0 ? paginatedOrigines.map((origine, index) => (
-                                <tr key={origine.id} className={`border-t border-slate-200 hover:bg-primary/5 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'}`}>
-                                    <th scope="row" className="px-6 py-3 font-medium text-slate-900 whitespace-nowrap">{origine.nomPays}</th>
+                                <tr key={origine.idOrigine} className={`border-t border-slate-200 hover:bg-primary/5 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'}`}>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="text-sm font-medium text-gray-900">{origine.nomPays}</div>
+                                    </td>
                                     <td className="px-6 py-3">
                                         <div className="flex items-center justify-center space-x-2">
-                                            <button onClick={() => handleOpenModal(origine.id)} className="p-1.5 text-blue-600 bg-blue-100 hover:bg-blue-200 rounded-md transition-colors" aria-label={`Modifier l'origine ${origine.nomPays}`}>
+                                            <button onClick={() => handleOpenModal(origine.idOrigine.toString())} className="p-1.5 text-blue-600 bg-blue-100 hover:bg-blue-200 rounded-md transition-colors" aria-label={`Modifier l'origine ${origine.nomPays}`}>
                                                 <EditIconAlt className="w-4 h-4" />
                                             </button>
-                                            <button onClick={() => handleDelete(origine.id, origine.nomPays)} className="p-1.5 text-red-600 bg-red-100 hover:bg-red-200 rounded-md transition-colors" aria-label={`Supprimer l'origine ${origine.nomPays}`}>
+                                            <button onClick={() => handleDelete(origine.idOrigine.toString(), origine.nomPays)} className="p-1.5 text-red-600 bg-red-100 hover:bg-red-200 rounded-md transition-colors" aria-label={`Supprimer l'origine ${origine.nomPays}`}>
                                                 <DeleteIconAlt className="w-4 h-4" />
                                             </button>
                                         </div>

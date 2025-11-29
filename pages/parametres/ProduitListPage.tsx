@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { useProduits } from '../../context/AppContext';
@@ -46,7 +46,11 @@ const SortableHeader: React.FC<{
 
 
 const ProduitListPage: React.FC = () => {
-    const { produits, deleteProduit } = useProduits();
+    const { produits, deleteProduit, fetchProduits } = useProduits();
+
+    useEffect(() => {
+        fetchProduits();
+    }, [fetchProduits]);
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -119,9 +123,9 @@ const ProduitListPage: React.FC = () => {
             cancelButtonText: 'Annuler',
             background: '#334155',
             color: '#f8fafc'
-        }).then((result) => {
+        }).then(async (result) => {
             if (result.isConfirmed) {
-                deleteProduit(id);
+                await deleteProduit(id);
                 MySwal.fire({
                    title: 'Supprimé !',
                    text: "Le produit a été supprimé avec succès.",

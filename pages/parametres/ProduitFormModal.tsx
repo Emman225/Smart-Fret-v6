@@ -18,7 +18,7 @@ interface ProduitFormModalProps {
 }
 
 const ProduitFormModal: React.FC<ProduitFormModalProps> = ({ isOpen, onClose, produitId }) => {
-    const { getProduitById, addProduit, updateProduit } = useProduits();
+    const { getProduitById, addProduit, updateProduit, fetchProduits } = useProduits();
     const isEditing = Boolean(produitId);
 
     const { register, handleSubmit, reset, formState: { errors } } = useForm<ProduitFormInputs>({
@@ -55,23 +55,33 @@ const ProduitFormModal: React.FC<ProduitFormModalProps> = ({ isOpen, onClose, pr
         };
     }, [isOpen, produitId, isEditing, getProduitById, reset, onClose]);
 
-    const onSubmit: SubmitHandler<ProduitFormInputs> = (data) => {
-        if (isEditing && produitId) {
-            updateProduit({ ...data, id: produitId });
-        } else {
-            addProduit(data);
+    const onSubmit: SubmitHandler<ProduitFormInputs> = async (data) => {
+        try {
+            if (isEditing && produitId) {
+                await updateProduit({ ...data, id: produitId });
+            } else {
+                await addProduit(data);
+            }
+            await fetchProduits();
+            onClose();
+            MySwal.fire({
+                title: 'Succès !',
+                text: `Le produit a été ${isEditing ? 'mis à jour' : 'créé'} avec succès.`,
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false,
+                background: '#334155',
+                color: '#f8fafc'
+            });
+        } catch (error: any) {
+            MySwal.fire({
+                title: 'Erreur',
+                text: error?.message || 'Une erreur est survenue lors de l\'enregistrement du produit',
+                icon: 'error',
+                background: '#334155',
+                color: '#f8fafc'
+            });
         }
-        
-        onClose();
-        MySwal.fire({
-            title: 'Succès !',
-            text: `Le produit a été ${isEditing ? 'mis à jour' : 'créé'} avec succès.`,
-            icon: 'success',
-            timer: 2000,
-            showConfirmButton: false,
-            background: '#334155',
-            color: '#f8fafc'
-        });
     };
 
     const FieldWrapper: React.FC<{ label: string; htmlFor: keyof ProduitFormInputs; error?: string; children: React.ReactNode }> = ({ label, htmlFor, error, children }) => (

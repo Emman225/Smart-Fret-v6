@@ -17,27 +17,27 @@ export interface PrixReviensItem {
 }
 
 export interface ReglementItem {
-    id: string;
-    date: string;
-    reference: string;
-    modePaiement: string;
-    banque: string;
-    montantDevise: number;
-    devise: string;
-    coursDevise: number;
-    montantCFA: number;
-    montantTPS: number;
-    fraisBancaires: number;
+  id: string;
+  date: string;
+  reference: string;
+  modePaiement: string;
+  banque: string;
+  montantDevise: number;
+  devise: string;
+  coursDevise: number;
+  montantCFA: number;
+  montantTPS: number;
+  fraisBancaires: number;
 }
 
 export interface DetailAdministratif {
-    nom: string;
-    numFacture: string;
-    date: string;
-    numCC: string;
-    montant: number;
-    montantTaxable: number;
-    montantTVA: number;
+  nom: string;
+  numFacture: string;
+  date: string;
+  numCC: string;
+  montant: number;
+  montantTaxable: number;
+  montantTVA: number;
 }
 
 export interface TEUItem {
@@ -52,6 +52,10 @@ export interface User {
   contact: string;
   email: string;
   password?: string;
+  role?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  permissions?: string[];
 }
 
 export interface Armateur {
@@ -75,6 +79,7 @@ export interface Navire {
   id: string;
   nomNavire: string;
   armateurId: string;
+  armateurName?: string;
 }
 
 export interface CategorieProduit {
@@ -91,12 +96,24 @@ export interface Dossier {
   id: string;
   // Section 1: Dossier livraisons
   numeroDossier: string;
-  origine: string;
+  origine: string | { id?: number | string; label?: string; nom?: string };
   numFRI: string;
   numBSC: string;
   montantBSC: number;
   numBL: string;
-  type: string;
+  date: string;
+  armateur: string;
+  navire: string;
+  dateETA: string;
+  numFactureVendeur: string;
+  dateFactureVendeur: string;
+  montantFacture: number;
+  devise: string;
+  cours: number;
+  montantCFA: number;
+  montantAssurance: number;
+  incoterm: string;
+  type: string | { id?: number | string; libelle?: string; label?: string };
   qte: number;
   nbreTEU: number;
   vendeur: string;

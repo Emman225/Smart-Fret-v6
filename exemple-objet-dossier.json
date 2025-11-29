@@ -1,0 +1,172 @@
+{
+  "numeroDossier": "DOS-2024-001",
+  "origine": "Chine",
+  "numFRI": "FRI-123456",
+  "numBSC": "BSC-789012",
+  "montantBSC": 15000.50,
+  "numBL": "BL-MAEU-1234567",
+  "type": "D3",
+  "qte": 100,
+  "nbreTEU": 2,
+  "vendeur": "Alibaba Group",
+  
+  "items": [
+    {
+      "id": "item_1",
+      "quantite": 50,
+      "designation": "Électroniques - Smartphones",
+      "fob": 25000.00
+    },
+    {
+      "id": "item_2",
+      "quantite": 30,
+      "designation": "Accessoires téléphoniques",
+      "fob": 5000.00
+    },
+    {
+      "id": "item_3",
+      "quantite": 20,
+      "designation": "Câbles et chargeurs",
+      "fob": 2000.00
+    }
+  ],
+  
+  "prixReviens": [
+    {
+      "id": "prix_1",
+      "designation": "Électroniques - Smartphones",
+      "quantite": 50,
+      "fob": 25000.00,
+      "cfa": 15000000.00,
+      "percentage": 10.5,
+      "prixRevient": 16575000.00
+    },
+    {
+      "id": "prix_2",
+      "designation": "Accessoires téléphoniques",
+      "quantite": 30,
+      "fob": 5000.00,
+      "cfa": 3000000.00,
+      "percentage": 8.0,
+      "prixRevient": 3240000.00
+    }
+  ],
+  
+  "nomTransit": "Transit Express Sénégal",
+  "numFactureTransit": "TE-2024-001",
+  "dateFactureTransit": "2024-01-15",
+  "montantTransit": 5000.00,
+  "droitDouane": 2500.00,
+  "droitDTaxe": 500.00,
+  "montantTVADouane": 1800.00,
+  "montantTSDouane": 300.00,
+  "fraisPhyto": 0.00,
+  "fraisDepotage": 1200.00,
+  "numCCTransit": "CC-TE-2024-001",
+  "numDosTran": "DT-TE-2024-001",
+  "numDeclarant": "DEC-007",
+  "dateDeclarant": "2024-01-20",
+  "montantTVAFactTrans": 900.00,
+  "montantTVAInterv": 200.00,
+  
+  "aconnier": {
+    "nom": "Port Autonome de Dakar",
+    "numFacture": "AC-2024-001",
+    "date": "2024-01-10",
+    "numCC": "CC-AC-001",
+    "montant": 800.00,
+    "montantTaxable": 750.00,
+    "montantTVA": 150.00
+  },
+  
+  "fret": {
+    "nom": "Maersk Line",
+    "numFacture": "FR-2024-001",
+    "date": "2024-01-12",
+    "numCC": "CC-FR-001",
+    "montant": 3500.00,
+    "montantTaxable": 3500.00,
+    "montantTVA": 0.00
+  },
+  
+  "transport": {
+    "nom": "Camion Pro Transport",
+    "numFacture": "TR-2024-001",
+    "date": "2024-01-18",
+    "numCC": "CC-TR-001",
+    "montant": 600.00,
+    "montantTaxable": 600.00,
+    "montantTVA": 108.00
+  },
+  
+  "change": {
+    "nom": "CBAO - Bureau de Change",
+    "numFacture": "CH-2024-001",
+    "date": "2024-01-08",
+    "numCC": "CC-CH-001",
+    "montant": 100.00,
+    "montantTaxable": 100.00,
+    "montantTVA": 18.00
+  },
+  
+  "surestaire": {
+    "nom": "Surestaire Services",
+    "numFacture": "SU-2024-001",
+    "date": "2024-01-14",
+    "numCC": "CC-SU-001",
+    "montant": 400.00,
+    "montantTaxable": 400.00,
+    "montantTVA": 72.00
+  },
+  
+  "magasinage": {
+    "nom": "Entrepôt Central Dakar",
+    "numFacture": "MG-2024-001",
+    "date": "2024-01-16",
+    "numCC": "CC-MG-001",
+    "montant": 400.00,
+    "montantTaxable": 400.00,
+    "montantTVA": 72.00
+  },
+  
+  "reglements": [
+    {
+      "id": "reg_1",
+      "date": "2024-01-10",
+      "reference": "PAY-2024-001",
+      "modePaiement": "Virement",
+      "banque": "CBAO",
+      "montantDevise": 50000.00,
+      "devise": "USD",
+      "coursDevise": 600.00,
+      "montantCFA": 30000000.00,
+      "montantTPS": 0.00,
+      "fraisBancaires": 50.00
+    },
+    {
+      "id": "reg_2",
+      "date": "2024-01-25",
+      "reference": "PAY-2024-002",
+      "modePaiement": "Chèque",
+      "banque": "SGBS",
+      "montantDevise": 20000.00,
+      "devise": "EUR",
+      "coursDevise": 650.00,
+      "montantCFA": 13000000.00,
+      "montantTPS": 0.00,
+      "fraisBancaires": 25.00
+    }
+  ],
+  
+  "teus": [
+    {
+      "id": "teu_1",
+      "numero": "MSCU1234567"
+    },
+    {
+      "id": "teu_2",
+      "numero": "CMAU7654321"
+    }
+  ]
+}
+

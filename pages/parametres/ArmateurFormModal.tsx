@@ -1,37 +1,48 @@
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
-import { Armateur } from '../../types';
-import { useArmateurs } from '../../context/AppContext';
-import Swal from 'sweetalert2';
+import useArmateurs from '../../hooks/useArmateurs';
+import { Armateur } from '../../services/armateurService';
+import { XCircleIcon, RefreshIcon } from '../../components/icons';
 import withReactContent from 'sweetalert2-react-content';
-import { XCircleIcon } from '../../components/icons';
+import Swal from 'sweetalert2';
 
 const MySwal = withReactContent(Swal);
 
-type ArmateurFormInputs = Omit<Armateur, 'id'>;
+type ArmateurFormInputs = Omit<Armateur, 'IdArmat'>;
 
 interface ArmateurFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    armateurId: string | null;
+    armateur?: Armateur | null;
+    onSuccess?: () => void;
 }
 
-const ArmateurFormModal: React.FC<ArmateurFormModalProps> = ({ isOpen, onClose, armateurId }) => {
-    const { getArmateurById, addArmateur, updateArmateur } = useArmateurs();
-    const isEditing = Boolean(armateurId);
+const ArmateurFormModal: React.FC<ArmateurFormModalProps> = ({ isOpen, onClose, armateur, onSuccess }) => {
+    const { createArmateur, updateArmateur } = useArmateurs();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const isEditing = Boolean(armateur?.IdArmat);
 
-    const { register, handleSubmit, reset, formState: { errors } } = useForm<ArmateurFormInputs>({
-        defaultValues: {
-            armateur: '',
-            contact: '',
-            email: ''
+    const { register, handleSubmit, reset, formState: { errors }, setValue } = useForm<ArmateurFormInputs>();
+
+    useEffect(() => {
+        if (isOpen) {
+            if (isEditing && armateur) {
+                setValue('NomArmat', armateur.NomArmat);
+                setValue('ContactArmat', armateur.ContactArmat || '');
+                setValue('EmailArmat', armateur.EmailArmat || '');
+            } else {
+                reset({
+                    NomArmat: '',
+                    ContactArmat: '',
+                    EmailArmat: ''
+                });
+            }
         }
-    });
+    }, [isOpen, isEditing, armateur, reset, setValue]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
+            if (event.key === 'Escape' && !isSubmitting) {
                 onClose();
             }
         };
@@ -39,119 +50,201 @@ const ArmateurFormModal: React.FC<ArmateurFormModalProps> = ({ isOpen, onClose, 
         if (isOpen) {
             document.body.style.overflow = 'hidden';
             document.addEventListener('keydown', handleKeyDown);
-            if (isEditing && armateurId) {
-                const armateur = getArmateurById(armateurId);
-                if (armateur) {
-                    reset(armateur);
-                }
-            } else {
-                reset();
-            }
         } else {
             document.body.style.overflow = 'unset';
+            document.removeEventListener('keydown', handleKeyDown);
         }
 
         return () => {
             document.body.style.overflow = 'unset';
             document.removeEventListener('keydown', handleKeyDown);
         };
-    }, [isOpen, armateurId, isEditing, getArmateurById, reset, onClose]);
+    }, [isOpen, isSubmitting, onClose]);
 
-    const onSubmit: SubmitHandler<ArmateurFormInputs> = (data) => {
-        if (isEditing && armateurId) {
-            updateArmateur({ ...data, id: armateurId });
-        } else {
-            addArmateur(data);
+    const onSubmit: SubmitHandler<ArmateurFormInputs> = async (data) => {
+        try {
+            setIsSubmitting(true);
+            
+            if (isEditing && armateur?.IdArmat) {
+                const result = await updateArmateur(armateur.IdArmat, data);
+                
+                if (result.success) {
+                    MySwal.fire({
+                        title: 'Succès',
+                        text: 'L\'armateur a été mis à jour avec succès.',
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    });
+                } else {
+                    throw new Error(result.error || 'Une erreur est survenue lors de la mise à jour');
+                }
+            } else {
+                const result = await createArmateur(data);
+                
+                if (result.success) {
+                    MySwal.fire({
+                        title: 'Succès',
+                        text: 'L\'armateur a été créé avec succès.',
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    });
+                } else {
+                    throw new Error(result.error || 'Une erreur est survenue lors de la création');
+                }
+            }
+            
+            if (onSuccess) {
+                onSuccess();
+            }
+            
+            onClose();
+            
+        } catch (error: any) {
+            console.error('Erreur lors de la sauvegarde de l\'armateur :', error);
+            
+            await MySwal.fire({
+                title: 'Erreur',
+                text: error.message || 'Une erreur est survenue lors de la sauvegarde de l\'armateur',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+        } finally {
+            setIsSubmitting(false);
         }
-        
-        onClose();
-        MySwal.fire({
-            title: 'Succès !',
-            text: `L'armateur a été ${isEditing ? 'mis à jour' : 'créé'} avec succès.`,
-            icon: 'success',
-            timer: 2000,
-            showConfirmButton: false,
-            background: '#334155',
-            color: '#f8fafc'
-        });
     };
 
-    const FieldWrapper: React.FC<{ label: string; htmlFor: keyof ArmateurFormInputs; error?: string; children: React.ReactNode }> = ({ label, htmlFor, error, children }) => (
-        <div>
-            <label htmlFor={htmlFor} className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
-            {children}
-            {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-        </div>
-    );
+    const renderSubmitButton = () => {
+        if (isSubmitting) {
+            return (
+                <button
+                    type="button"
+                    disabled
+                    className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-400 cursor-not-allowed"
+                >
+                    <RefreshIcon className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" />
+                    {isEditing ? 'Mise à jour...' : 'Création...'}
+                </button>
+            );
+        }
+        
+        return (
+            <button
+                type="submit"
+                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                disabled={isSubmitting}
+            >
+                {isEditing ? 'Mettre à jour' : 'Créer'}
+            </button>
+        );
+    };
 
     if (!isOpen) return null;
-    
+
     return (
-        <div 
-            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in"
-            onClick={onClose}
-            role="dialog"
-            aria-modal="true"
-        >
-            <div 
-                className="bg-white rounded-xl shadow-2xl w-full max-w-2xl transform animate-scale-up"
-                onClick={e => e.stopPropagation()}
-            >
-                <div className="flex justify-between items-center p-5 bg-primary text-white rounded-t-xl">
-                    <h2 className="text-xl font-bold">
-                        {isEditing ? "Modifier l'armateur" : "Créer un nouvel armateur"}
-                    </h2>
-                    <button onClick={onClose} className="text-blue-100 hover:text-white transition-colors" aria-label="Fermer">
-                        <XCircleIcon className="w-7 h-7" />
-                    </button>
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div 
+                    className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+                    aria-hidden="true" 
+                    onClick={isSubmitting ? undefined : onClose}
+                ></div>
+
+                <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">
+                    &#8203;
+                </span>
+
+                <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                    <div className="flex justify-between items-center px-5 py-4 sm:px-6 bg-primary text-white">
+                        <h3 className="text-lg leading-6 font-semibold" id="modal-title">
+                            {isEditing ? 'Modifier un armateur' : 'Ajouter un nouvel armateur'}
+                        </h3>
+                        <button
+                            type="button"
+                            className="text-blue-100 hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-primary focus:ring-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={onClose}
+                            disabled={isSubmitting}
+                            aria-label="Fermer"
+                        >
+                            <XCircleIcon className="h-6 w-6" />
+                        </button>
+                    </div>
+
+                    <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                            <div className="mb-4">
+                                <label htmlFor="NomArmat" className="block text-sm font-medium text-gray-700">
+                                    Nom de l'armateur <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    id="NomArmat"
+                                    disabled={isSubmitting}
+                                    className={`mt-1 block w-full border ${
+                                        errors.NomArmat ? 'border-red-300' : 'border-gray-300'
+                                    } rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-50`}
+                                    {...register('NomArmat', { 
+                                        required: "Le nom de l'armateur est requis",
+                                        minLength: {
+                                            value: 2,
+                                            message: "Le nom doit contenir au moins 2 caractères"
+                                        }
+                                    })}
+                                />
+                                {errors.NomArmat && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.NomArmat.message}</p>
+                                )}
+                            </div>
+
+                            <div className="mb-4">
+                                <label htmlFor="ContactArmat" className="block text-sm font-medium text-gray-700">
+                                    Contact
+                                </label>
+                                <input
+                                    type="text"
+                                    id="ContactArmat"
+                                    disabled={isSubmitting}
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-50"
+                                    {...register('ContactArmat')}
+                                />
+                            </div>
+
+                            <div className="mb-4">
+                                <label htmlFor="EmailArmat" className="block text-sm font-medium text-gray-700">
+                                    Email
+                                </label>
+                                <input
+                                    type="email"
+                                    id="EmailArmat"
+                                    disabled={isSubmitting}
+                                    className={`mt-1 block w-full border ${
+                                        errors.EmailArmat ? 'border-red-300' : 'border-gray-300'
+                                    } rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-50`}
+                                    {...register('EmailArmat', {
+                                        pattern: {
+                                            value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                                            message: 'Adresse email invalide'
+                                        }
+                                    })}
+                                />
+                                {errors.EmailArmat && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.EmailArmat.message}</p>
+                                )}
+                            </div>
+
+                            <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                                <button
+                                    type="button"
+                                    disabled={isSubmitting}
+                                    className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:col-start-1 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    onClick={onClose}
+                                >
+                                    Annuler
+                                </button>
+                                {renderSubmitButton()}
+                            </div>
+                        </form>
+                    </div>
                 </div>
-                 
-                <form onSubmit={handleSubmit(onSubmit)}>
-                    <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
-                        <FieldWrapper label="Nom de l'armateur" htmlFor="armateur" error={errors.armateur?.message}>
-                            <input
-                                id="armateur"
-                                type="text"
-                                {...register('armateur', { required: "Le nom de l'armateur est requis" })}
-                                className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${errors.armateur ? 'border-red-500 focus:ring-red-400' : 'border-slate-300 focus:ring-primary'}`}
-                            />
-                        </FieldWrapper>
-
-                        <FieldWrapper label="Contact" htmlFor="contact" error={errors.contact?.message}>
-                            <input
-                                id="contact"
-                                type="tel"
-                                {...register('contact')}
-                                className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${errors.contact ? 'border-red-500 focus:ring-red-400' : 'border-slate-300 focus:ring-primary'}`}
-                            />
-                        </FieldWrapper>
-
-                        <FieldWrapper label="Email" htmlFor="email" error={errors.email?.message}>
-                            <input
-                                id="email"
-                                type="email"
-                                {...register('email', { 
-                                    required: "L'email est requis",
-                                    pattern: {
-                                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                                        message: "Adresse email invalide"
-                                    }
-                                })}
-                                className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${errors.email ? 'border-red-500 focus:ring-red-400' : 'border-slate-300 focus:ring-primary'}`}
-                            />
-                        </FieldWrapper>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex justify-end space-x-4 p-5 bg-slate-50 border-t border-slate-200 rounded-b-xl">
-                        <button type="button" onClick={onClose} className="bg-white border border-slate-300 text-slate-700 px-6 py-2 rounded-lg hover:bg-slate-50 text-sm font-medium transition-colors">
-                            Annuler
-                        </button>
-                        <button type="submit" className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-blue-600 text-sm font-medium transition-colors shadow-sm hover:shadow-md">
-                            {isEditing ? 'Mettre à jour' : "Créer l'armateur"}
-                        </button>
-                    </div>
-                </form>
             </div>
         </div>
     );

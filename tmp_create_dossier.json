@@ -1,0 +1,131 @@
+{
+  "numeroDossier": "DOS-2025-009",
+  "origine": { "id": 2, "label": "Japon" },
+  "type": "D3",
+  "date": "2025-11-01",
+  "dateETA": "2025-12-05",
+  "numFRI": "FRI-5566",
+  "numBSC": "BSC-7788",
+  "montantBSC": 1250000,
+  "numBL": "BL-2025-44",
+  "armateur": "MAERSK",
+  "navire": "Blue Ocean",
+  "numFactureVendeur": "FV-9988",
+  "dateFactureVendeur": "2025-10-27",
+  "montantFacture": 845000,
+  "devise": "USD",
+  "cours": 610.35,
+  "montantCFA": 515707500,
+  "montantAssurance": 25000,
+  "incoterm": "CIF",
+  "qte": 1200,
+  "nbreTEU": 3,
+  "vendeur": "Shanghai Equipements Ltd",
+  "nomTransit": "Transit Afrique",
+  "numFactureTransit": "TR-4512",
+  "dateFactureTransit": "2025-11-03",
+  "montantTransit": 220000,
+  "droitDouane": 180000,
+  "droitDTaxe": 95000,
+  "montantTVADouane": 120000,
+  "montantTSDouane": 32000,
+  "fraisPhyto": 15000,
+  "fraisDepotage": 28000,
+  "numCCTransit": "CC-TR-88",
+  "numDosTran": "DTX-5522",
+  "numDeclarant": "DECL-7442",
+  "dateDeclarant": "2025-11-06",
+  "montantTVAFactTrans": 54000,
+  "montantTVAInterv": 26500,
+  "aconnier": {
+    "nom": "Société Accon",
+    "numFacture": "AC-5521",
+    "date": "2025-11-04",
+    "numCC": "CC-AC-77",
+    "montant": 48000,
+    "montantTaxable": 40000,
+    "montantTVA": 8000
+  },
+  "fret": {
+    "nom": "Global Freight",
+    "numFacture": "FR-1144",
+    "date": "2025-10-30",
+    "numCC": "CC-FR-09",
+    "montant": 300000,
+    "montantTaxable": 250000,
+    "montantTVA": 50000
+  },
+  "transport": {
+    "nom": "Trans Cité",
+    "numFacture": "TP-552",
+    "date": "2025-11-02",
+    "montant": 95000,
+    "montantTaxable": 80000,
+    "montantTVA": 15000
+  },
+  "change": {
+    "nom": "BICICI",
+    "numFacture": "CH-2025-11",
+    "date": "2025-10-28",
+    "montant": 5000,
+    "montantTaxable": 0,
+    "montantTVA": 0
+  },
+  "surestaire": {
+    "nom": "Port Abidjan",
+    "numFacture": "SU-778",
+    "date": "2025-11-20",
+    "montant": 12000,
+    "montantTaxable": 10000,
+    "montantTVA": 2000
+  },
+  "magasinage": {
+    "nom": "Magasin Delta",
+    "numFacture": "MG-451",
+    "date": "2025-11-18",
+    "montant": 36000,
+    "montantTaxable": 30000,
+    "montantTVA": 6000
+  },
+  "items": [
+    { "id": 30, "quantite": 600, "designation": "Pièces détachées A", "fob": 3200 },
+    { "id": 32, "quantite": 600, "designation": "Pièces détachées B", "fob": 4100 }
+  ],
+  "prixReviens": [
+    { "id": 33, "designation": "Main d'œuvre", "quantite": 600, "fob": 500, "cfa": 305000, "percentage": 12.5, "prixRevient": 355000 },
+    { "id": 35, "designation": "Conditionnement", "quantite": 600, "fob": 200, "cfa": 122000, "percentage": 6, "prixRevient": 142000 }
+  ],
+  "reglements": [
+    {
+      "id": 24,
+      "date": "2025-10-29",
+      "reference": "VR-4455",
+      "modePaiement": "Virement",
+      "banque": "SGBCI",
+      "montantDevise": 300000,
+      "devise": "USD",
+      "coursDevise": 610.35,
+      "montantCFA": 183105000,
+      "montantTPS": 0,
+      "fraisBancaires": 1500
+    },
+    {
+      "id": 26,
+      "date": "2025-11-10",
+      "reference": "CH-7788",
+      "modePaiement": "Chèque",
+      "banque": "BIAO",
+      "montantDevise": 100000,
+      "devise": "EUR",
+      "coursDevise": 655.6,
+      "montantCFA": 65560000,
+      "montantTPS": 0,
+      "fraisBancaires": 2000
+    }
+  ],
+  "teus": [
+    { "id": 34, "numero": "MSKU5566771" },
+    { "id": 36, "numero": "MSKU5566772" },
+    { "id": 39, "numero": "MSKU5566773" }
+  ]
+}

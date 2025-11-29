@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { useCategorieProduits } from '../../context/AppContext';
@@ -46,7 +46,11 @@ const SortableHeader: React.FC<{
 
 
 const CategorieProduitListPage: React.FC = () => {
-    const { categorieProduits, deleteCategorieProduit } = useCategorieProduits();
+    const { categorieProduits, deleteCategorieProduit, fetchCategorieProduits } = useCategorieProduits();
+
+    useEffect(() => {
+        fetchCategorieProduits();
+    }, [fetchCategorieProduits]);
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -119,9 +123,9 @@ const CategorieProduitListPage: React.FC = () => {
             cancelButtonText: 'Annuler',
             background: '#334155',
             color: '#f8fafc'
-        }).then((result) => {
+        }).then(async (result) => {
             if (result.isConfirmed) {
-                deleteCategorieProduit(id);
+                await deleteCategorieProduit(id);
                 MySwal.fire({
                    title: 'Supprimé !',
                    text: "La catégorie de produit a été supprimée avec succès.",

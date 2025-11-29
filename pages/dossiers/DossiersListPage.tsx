@@ -1,337 +1,443 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { getDossiers, deleteDossier } from '../../services/dossierService';
+import { Dossier } from '../../types';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
-import { useDossiers } from '../../context/AppContext';
-import { AddIcon, SortIcon, SortAscIcon, SortDescIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, FolderIcon, EditIconAlt, DeleteIconAlt } from '../../components/icons';
-import { Dossier } from '../../types';
+import {
+    PlusIcon,
+    PencilIcon,
+    TrashIcon,
+    MagnifyingGlassIcon,
+    ChevronLeftIcon,
+    ChevronRightIcon,
+    FunnelIcon,
+    ArrowPathIcon
+} from '@heroicons/react/24/outline';
+import { useArmateurs, useNavires, useOrigines } from '../../context/AppContext';
+import { getArmateurs } from '../../services/armateurService';
+import { Armateur as ArmateurType } from '../../services/armateurService';
 
 const MySwal = withReactContent(Swal);
 
-type SortableKeys = keyof Dossier | 'items';
-
 type SortConfig = {
-    key: SortableKeys;
-    direction: 'ascending' | 'descending';
+    key: keyof Dossier;
+    direction: 'asc' | 'desc';
 } | null;
 
-const SortableHeader: React.FC<{
-    column: SortableKeys;
-    title: string;
-    sortConfig: SortConfig;
-    requestSort: (key: SortableKeys) => void;
-    className?: string;
-}> = ({ column, title, sortConfig, requestSort, className = '' }) => {
-    
-    const getIcon = () => {
-        if (!sortConfig || sortConfig.key !== column) {
-            return <SortIcon />;
-        }
-        if (sortConfig.direction === 'ascending') {
-            return <SortAscIcon />;
-        }
-        return <SortDescIcon />;
-    };
-
-    const isRightAligned = className.includes('text-right');
-
-    return (
-        <th scope="col" className={`px-6 py-2 cursor-pointer select-none group ${className}`} onClick={() => requestSort(column)}>
-            <div className={`flex items-center space-x-2 ${isRightAligned ? 'justify-end' : ''}`}>
-                <span>{title}</span>
-                <span className="text-slate-400 group-hover:text-white transition-colors">{getIcon()}</span>
-            </div>
-        </th>
-    );
-};
-
 const DossiersListPage: React.FC = () => {
-    const { dossiers, deleteDossier } = useDossiers();
     const navigate = useNavigate();
-
+    const [dossiers, setDossiers] = useState<Dossier[]>([]);
+    const [loading, setLoading] = useState<boolean>(false);
+    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
+    const [totalItems, setTotalItems] = useState<number>(0);
+    const [totalPages, setTotalPages] = useState<number>(1);
 
-    const processedDossiers = useMemo(() => {
-        let filteredDossiers = [...dossiers];
+    // Fetch reference data for lookups
+    const { armateurs } = useArmateurs();
+    const { navires, fetchNavires } = useNavires();
+    const { origines, fetchOrigines } = useOrigines();
 
-        if (searchTerm) {
-            const lowercasedFilter = searchTerm.toLowerCase();
-            filteredDossiers = filteredDossiers.filter(item => {
-                const designation = item.items[0]?.designation || '';
-                return (
-                    item.numeroDossier.toLowerCase().includes(lowercasedFilter) ||
-                    item.origine.toLowerCase().includes(lowercasedFilter) ||
-                    designation.toLowerCase().includes(lowercasedFilter) ||
-                    item.numFRI.toLowerCase().includes(lowercasedFilter) ||
-                    item.numBSC.toLowerCase().includes(lowercasedFilter) ||
-                    item.numBL.toLowerCase().includes(lowercasedFilter) ||
-                    item.vendeur.toLowerCase().includes(lowercasedFilter) ||
-                    String(item.montantBSC).includes(lowercasedFilter)
-                );
-            });
-        }
-        
-        if (sortConfig !== null) {
-            filteredDossiers.sort((a, b) => {
-                let aValue: string | number | undefined, bValue: string | number | undefined;
+    // Local state for armateurs since context doesn't load them
+    const [armateursList, setArmateursList] = useState<ArmateurType[]>([]);
 
-                if (sortConfig.key === 'items') {
-                    aValue = a.items[0]?.designation || '';
-                    bValue = b.items[0]?.designation || '';
-                } else {
-                    aValue = a[sortConfig.key as keyof Dossier];
-                    bValue = b[sortConfig.key as keyof Dossier];
+    // Create lookup maps for quick name resolution
+    const armateurMap = useMemo(() => {
+        const map = new Map<string, string>();
+        // Use local armateursList if context armateurs is empty
+        const dataSource = armateurs.length > 0 ? armateurs : armateursList;
+        dataSource.forEach((a: any) => {
+            // Handle both frontend (id) and backend (IdArmat) property names
+            const armateurId = String(a.id || a.IdArmat || '');
+            const armateurName = a.armateur || a.NomArmat || '';
+            if (armateurId) map.set(armateurId, armateurName);
+        });
+        return map;
+    }, [armateurs, armateursList]);
+
+    const navireMap = useMemo(() => {
+        const map = new Map<string, string>();
+        navires.forEach(n => {
+            map.set(String(n.id), n.nomNavire || '');
+        });
+        return map;
+    }, [navires]);
+
+    const origineMap = useMemo(() => {
+        const map = new Map<string, string>();
+        origines.forEach(o => {
+            // Handle both frontend (id) and backend (idOrigine) property names
+            const origineId = String((o as any).id || (o as any).idOrigine || (o as any).IdOrigine || '');
+            const origineName = (o as any).nomPays || (o as any).NomPays || '';
+            if (origineId) map.set(origineId, origineName);
+        });
+        return map;
+    }, [origines]);
+
+    // Fetch reference data on mount
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadArmateurs = async () => {
+            try {
+                const response = await getArmateurs();
+                if (isMounted) {
+                    setArmateursList(response.data || []);
                 }
+            } catch (error) {
+                console.error('Error loading armateurs:', error);
+            }
+        };
 
-                if (aValue === null || aValue === undefined) return 1;
-                if (bValue === null || bValue === undefined) return -1;
-                
-                let comparison = 0;
-                if (typeof aValue === 'number' && typeof bValue === 'number') {
-                    comparison = aValue - bValue;
-                } else {
-                    comparison = String(aValue).localeCompare(String(bValue), 'fr', { numeric: true });
-                }
-                
-                return sortConfig.direction === 'ascending' ? comparison : -comparison;
+        loadArmateurs();
+
+        // Only fetch if not already loaded
+        if (fetchNavires && navires.length === 0) fetchNavires();
+        if (fetchOrigines && origines.length === 0) fetchOrigines();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []); // Empty dependency array - only run once on mount
+
+    // Debug logs removed for performance optimization
+
+    const fetchDossiers = async (page: number, limit: number, search: string = '') => {
+        setLoading(true);
+        try {
+            const data = await getDossiers({
+                page,
+                per_page: limit,
+                search: search,
+                sort_by: sortConfig?.key,
+                sort_order: sortConfig?.direction
             });
+            setDossiers(data.data);
+            if (data.pagination) {
+                setTotalItems(data.pagination.total);
+                setTotalPages(data.pagination.last_page);
+                setCurrentPage(data.pagination.current_page);
+            } else {
+                // Fallback si pas de pagination backend
+                setTotalItems(data.data.length);
+                setTotalPages(Math.ceil(data.data.length / limit));
+            }
+            setError(null);
+        } catch (err: any) {
+            setError(err.message || 'Erreur lors du chargement des dossiers');
+        } finally {
+            setLoading(false);
         }
-
-        return filteredDossiers;
-    }, [dossiers, searchTerm, sortConfig]);
-
-    const totalPages = Math.ceil(processedDossiers.length / itemsPerPage);
-    const paginatedDossiers = useMemo(() => {
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        return processedDossiers.slice(startIndex, startIndex + itemsPerPage);
-    }, [processedDossiers, currentPage, itemsPerPage]);
-
-    const requestSort = (key: SortableKeys) => {
-        let direction: 'ascending' | 'descending' = 'ascending';
-        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
-        setCurrentPage(1);
     };
-    
-    const handleDelete = (id: string, numeroDossier: string) => {
-        MySwal.fire({
+
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            fetchDossiers(currentPage, itemsPerPage, searchTerm);
+        }, searchTerm ? 300 : 0); // No delay for pagination/sort, only for search
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [currentPage, itemsPerPage, searchTerm, sortConfig]);
+
+    const handleDelete = async (id: number) => {
+        const result = await MySwal.fire({
             title: 'Êtes-vous sûr ?',
-            text: `Vous êtes sur le point de supprimer le dossier ${numeroDossier}. Cette action est irréversible !`,
+            text: "Cette action est irréversible !",
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Oui, supprimer !',
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Oui, supprimer',
             cancelButtonText: 'Annuler',
-            background: '#334155',
-            color: '#f8fafc'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                deleteDossier(id);
-                MySwal.fire({
-                   title: 'Supprimé !',
-                   text: 'Le dossier a été supprimé avec succès.',
-                   icon: 'success',
-                   background: '#334155',
-                   color: '#f8fafc'
-                });
+            customClass: {
+                popup: 'rounded-2xl',
+                confirmButton: 'rounded-xl px-4 py-2',
+                cancelButton: 'rounded-xl px-4 py-2'
             }
         });
-    };
-    
-    const startEntry = processedDossiers.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
-    const endEntry = Math.min(currentPage * itemsPerPage, processedDossiers.length);
 
-    const getPaginationItems = () => {
-        const pages = [];
-        const DOTS = '...';
-        
-        if (totalPages <= 7) {
-            for (let i = 1; i <= totalPages; i++) pages.push(i);
-            return pages;
-        }
-
-        pages.push(1);
-        if (currentPage > 3) pages.push(DOTS);
-        
-        const startPage = Math.max(2, currentPage - 1);
-        const endPage = Math.min(totalPages - 1, currentPage + 1);
-
-        for (let i = startPage; i <= endPage; i++) {
-            if (i > 1 && i < totalPages) {
-                pages.push(i);
+        if (result.isConfirmed) {
+            try {
+                await deleteDossier(id);
+                await fetchDossiers(currentPage, itemsPerPage, searchTerm);
+                MySwal.fire({
+                    title: 'Supprimé !',
+                    text: 'Le dossier a été supprimé.',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false,
+                    customClass: { popup: 'rounded-2xl' }
+                });
+            } catch (err: any) {
+                MySwal.fire({
+                    title: 'Erreur',
+                    text: err.message || 'Impossible de supprimer le dossier',
+                    icon: 'error',
+                    customClass: { popup: 'rounded-2xl' }
+                });
             }
         }
-        
-        if (currentPage < totalPages - 2) pages.push(DOTS);
-        pages.push(totalPages);
-        
-        return [...new Set(pages)]; // Remove duplicates
     };
 
+    const handleSort = (key: keyof Dossier) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const SortableHeader: React.FC<{ label: string; sortKey: keyof Dossier }> = ({ label, sortKey }) => (
+        <th
+            className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider cursor-pointer hover:text-blue-300 transition-colors group select-none"
+            onClick={() => handleSort(sortKey)}
+        >
+            <div className="flex items-center space-x-1">
+                <span>{label}</span>
+                <span className="flex flex-col">
+                    {sortConfig?.key === sortKey ? (
+                        sortConfig.direction === 'asc' ? '▲' : '▼'
+                    ) : (
+                        <span className="opacity-0 group-hover:opacity-50 text-[10px]">▲▼</span>
+                    )}
+                </span>
+            </div>
+        </th>
+    );
+
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold text-slate-800">Liste des Dossiers</h1>
+        <div className="space-y-6 animate-fade-in">
+            {/* Loading Overlay */}
+            {loading && (
+                <div className="fixed top-20 right-6 z-50 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2 animate-pulse">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-sm font-medium">Chargement...</span>
+                </div>
+            )}
+
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Liste des dossiers</h1>
+                    <p className="text-slate-500 mt-1">Gérez vos dossiers d'importation et d'exportation.</p>
+                </div>
                 <Link
                     to="/dossiers/new"
-                    className="flex items-center bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-all duration-300 text-sm font-medium shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                    className="inline-flex items-center justify-center px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all duration-200"
                 >
-                    <AddIcon />
-                    Nouveau dossier
+                    <PlusIcon className="w-5 h-5 mr-2" />
+                    Nouveau Dossier
                 </Link>
             </div>
-        
-            <div className="bg-white rounded-xl shadow-xl border border-slate-200">
-                <div className="flex flex-col sm:flex-row justify-between items-center p-4 bg-slate-50/70 border-b border-slate-200 rounded-t-xl space-y-3 sm:space-y-0">
-                     <div className="flex items-center space-x-2 text-sm">
-                        <label htmlFor="items-per-page" className="text-slate-600">Afficher</label>
-                        <select
-                            id="items-per-page"
-                            value={itemsPerPage}
-                            onChange={(e) => {
-                                setItemsPerPage(Number(e.target.value));
-                                setCurrentPage(1);
-                            }}
-                            className="bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
-                        >
-                            <option value="5">5</option>
-                            <option value="10">10</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                        </select>
-                        <span className="text-slate-600">éléments</span>
-                    </div>
-                    <div className="relative w-full sm:w-auto">
-                         <label htmlFor="table-search" className="sr-only">Rechercher</label>
-                         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                            <SearchIcon className="w-4 h-4 text-slate-400"/>
-                         </div>
-                         <input
+
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                {/* Toolbar */}
+                <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="relative max-w-md w-full">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <MagnifyingGlassIcon className="h-5 w-5 text-slate-400" />
+                        </div>
+                        <input
                             type="text"
-                            id="table-search"
                             placeholder="Rechercher un dossier..."
+                            className="block w-full pl-10 pr-3 py-2.5 border-none rounded-xl bg-white text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500/20 shadow-sm text-sm transition-shadow"
                             value={searchTerm}
-                            onChange={(e) => {
-                                setSearchTerm(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                            className="block w-full sm:w-72 pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm placeholder-slate-400 focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
+                            onChange={(e) => setSearchTerm(e.target.value)}
                         />
+                    </div>
+
+                    <div className="flex items-center space-x-3">
+                        <button
+                            onClick={() => fetchDossiers(currentPage, itemsPerPage, searchTerm)}
+                            className="px-3 py-2 text-sm text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors font-medium"
+                            title="Actualiser"
+                        >
+                            Actualiser
+                        </button>
+                        <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-xl shadow-sm border border-slate-200/50">
+                            <span className="text-xs font-medium text-slate-500">Lignes:</span>
+                            <select
+                                value={itemsPerPage}
+                                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                                className="border-none bg-transparent text-sm font-semibold text-slate-700 focus:ring-0 cursor-pointer p-0 pr-6"
+                            >
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
+                {/* Table */}
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-slate-600">
-                        <thead className="text-xs font-semibold text-sidebar-text bg-sidebar-bg uppercase">
+                    <table className="min-w-full divide-y divide-slate-100">
+                        <thead className="bg-slate-900">
                             <tr>
-                                <SortableHeader column="numeroDossier" title="N° Dossier" sortConfig={sortConfig} requestSort={requestSort} />
-                                <SortableHeader column="origine" title="Origine" sortConfig={sortConfig} requestSort={requestSort} />
-                                <SortableHeader column="items" title="Désignation" sortConfig={sortConfig} requestSort={requestSort} />
-                                <SortableHeader column="numFRI" title="N° FRI" sortConfig={sortConfig} requestSort={requestSort} />
-                                <SortableHeader column="numBSC" title="N° BSC" sortConfig={sortConfig} requestSort={requestSort} />
-                                <SortableHeader column="montantBSC" title="Montant BSC" sortConfig={sortConfig} requestSort={requestSort} className="text-right" />
-                                <SortableHeader column="vendeur" title="Vendeur" sortConfig={sortConfig} requestSort={requestSort} />
-                                <SortableHeader column="numBL" title="N° BL" sortConfig={sortConfig} requestSort={requestSort} />
-                                <th scope="col" className="px-6 py-2 text-center">Actions</th>
+                                <SortableHeader label="N° Dossier" sortKey="numeroDossier" />
+                                <SortableHeader label="Origine" sortKey="origine" />
+                                <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Désignation</th>
+                                <SortableHeader label="N° FRI" sortKey="numFRI" />
+                                <SortableHeader label="N° BSC" sortKey="numBSC" />
+                                <SortableHeader label="Mt BSC" sortKey="montantBSC" />
+                                <SortableHeader label="Vendeur" sortKey="vendeur" />
+                                <SortableHeader label="N° BL" sortKey="numBL" />
+                                <SortableHeader label="Navire" sortKey="navire" />
+                                <SortableHeader label="Armateur" sortKey="armateur" />
+                                <th className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-wider sticky right-0 bg-slate-900">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="align-middle">
-                            {paginatedDossiers.length > 0 ? paginatedDossiers.map((dossier, index) => (
-                                <tr key={dossier.id} className={`border-t border-slate-200 hover:bg-primary/5 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'}`}>
-                                    <th scope="row" className="px-6 py-3 font-medium text-slate-900 whitespace-nowrap">
-                                        {dossier.numeroDossier}
-                                    </th>
-                                    <td className="px-6 py-3">{dossier.origine}</td>
-                                    <td className="px-6 py-3 whitespace-nowrap">{dossier.items[0]?.designation || 'N/A'}</td>
-                                    <td className="px-6 py-3">{dossier.numFRI}</td>
-                                    <td className="px-6 py-3">{dossier.numBSC}</td>
-                                    <td className="px-6 py-3 text-right font-mono text-slate-800">{new Intl.NumberFormat('fr-FR').format(dossier.montantBSC)}</td>
-                                    <td className="px-6 py-3">{dossier.vendeur}</td>
-                                    <td className="px-6 py-3">{dossier.numBL}</td>
-                                    <td className="px-6 py-3">
-                                        <div className="flex items-center justify-center space-x-2">
-                                            <button onClick={() => navigate(`/dossiers/${dossier.id}/edit`)} className="p-1.5 text-blue-600 bg-blue-100 hover:bg-blue-200 rounded-md transition-colors" aria-label={`Modifier le dossier ${dossier.numeroDossier}`}>
-                                                <EditIconAlt className="w-4 h-4" />
-                                            </button>
-                                            <button onClick={() => handleDelete(dossier.id, dossier.numeroDossier)} className="p-1.5 text-red-600 bg-red-100 hover:bg-red-200 rounded-md transition-colors" aria-label={`Supprimer le dossier ${dossier.numeroDossier}`}>
-                                                <DeleteIconAlt className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )) : (
+                        <tbody className="bg-white divide-y divide-slate-100">
+                            {loading ? (
                                 <tr>
-                                    <td colSpan={9} className="text-center py-16 text-slate-500">
-                                         <div className="inline-block bg-slate-100 p-4 rounded-full text-slate-400">
-                                            <FolderIcon />
+                                    <td colSpan={11} className="px-6 py-12 text-center">
+                                        <div className="flex flex-col items-center justify-center">
+                                            <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-3"></div>
+                                            <span className="text-slate-500 text-sm font-medium">Chargement des données...</span>
                                         </div>
-                                        <p className="font-semibold mt-4 text-lg">Aucun dossier trouvé</p>
-                                        <p className="text-sm mt-1">{searchTerm ? 'Essayez de modifier vos critères de recherche.' : 'Créez un nouveau dossier pour commencer.'}</p>
                                     </td>
                                 </tr>
+                            ) : dossiers.length === 0 ? (
+                                <tr>
+                                    <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
+                                        Aucun dossier trouvé.
+                                    </td>
+                                </tr>
+                            ) : (
+                                dossiers.map((dossier) => (
+                                    <tr key={dossier.id} className="hover:bg-slate-50/80 transition-colors group">
+                                        {/* N° Dossier */}
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="flex items-center">
+                                                <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center mr-3 font-bold text-xs">
+                                                    {(dossier.numeroDossier || 'N/A').substring(0, 2).toUpperCase()}
+                                                </div>
+                                                <span className="text-sm font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+                                                    {dossier.numeroDossier || 'N/A'}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        {/* Origine */}
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                                                {origineMap.get(String(dossier.origine)) || (typeof dossier.origine === 'string' ? dossier.origine : (dossier.origine?.nom || dossier.origine?.label || (dossier.origine as any)?.nomPays || (dossier.origine as any)?.NomPays || '—'))}
+                                            </span>
+                                        </td>
+                                        {/* Désignation */}
+                                        <td className="px-6 py-4 text-sm text-slate-600">
+                                            <div className="max-w-xs truncate" title={dossier.items?.[0]?.designation || '—'}>
+                                                {dossier.items?.[0]?.designation || '—'}
+                                            </div>
+                                        </td>
+                                        {/* N° FRI */}
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                                            {dossier.numFRI || '—'}
+                                        </td>
+                                        {/* N° BSC */}
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                                            {dossier.numBSC || '—'}
+                                        </td>
+                                        {/* Mt BSC */}
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 text-right">
+                                            {dossier.montantBSC ? new Intl.NumberFormat('fr-FR').format(dossier.montantBSC) : '—'}
+                                        </td>
+                                        {/* Vendeur */}
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                                            {dossier.vendeur || '—'}
+                                        </td>
+                                        {/* N° BL */}
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                                            {dossier.numBL || '—'}
+                                        </td>
+                                        {/* Navire */}
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                                            {navireMap.get(String(dossier.navire)) || dossier.navire || '—'}
+                                        </td>
+                                        {/* Armateur */}
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                                            {armateurMap.get(String(dossier.armateur)) || dossier.armateur || '—'}
+                                        </td>
+                                        {/* Actions - Fixed column */}
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-white group-hover:bg-slate-50 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]">
+                                            <div className="flex items-center justify-end space-x-2">
+                                                <button
+                                                    onClick={() => navigate(`/dossiers/${dossier.id}/edit`)}
+                                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                    title="Modifier"
+                                                >
+                                                    <PencilIcon className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(Number(dossier.id))}
+                                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="Supprimer"
+                                                >
+                                                    <TrashIcon className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
                             )}
                         </tbody>
                     </table>
                 </div>
 
-                {processedDossiers.length > 0 && (
-                <div className="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-slate-200 rounded-b-xl">
-                    <p className="text-sm text-slate-600 mb-4 sm:mb-0">
-                        Affichage de <span className="font-semibold">{startEntry}</span> à <span className="font-semibold">{endEntry}</span> sur <span className="font-semibold">{processedDossiers.length}</span> éléments
-                    </p>
-                    {totalPages > 1 && (
-                         <nav>
-                            <ul className="inline-flex items-center -space-x-px text-sm">
-                                <li>
-                                    <button
-                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                        disabled={currentPage === 1}
-                                        className="flex items-center justify-center px-2 h-8 ml-0 leading-tight text-slate-500 bg-white border border-slate-300 rounded-l-lg hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                    >
-                                        <ChevronLeftIcon />
-                                    </button>
-                                </li>
-                                {getPaginationItems().map((page, index) => (
-                                    <li key={index}>
-                                        {typeof page === 'number' ? (
-                                            <button
-                                                onClick={() => setCurrentPage(page)}
-                                                className={`flex items-center justify-center px-3 h-8 leading-tight border border-slate-300 transition-colors ${
-                                                    currentPage === page
-                                                        ? 'text-white bg-primary border-primary hover:bg-blue-600 font-bold'
-                                                        : 'text-slate-500 bg-white hover:bg-slate-100 hover:text-slate-700'
-                                                }`}
-                                            >
-                                                {page}
-                                            </button>
-                                        ) : (
-                                            <span className="flex items-center justify-center px-3 h-8 leading-tight text-slate-500 bg-white border border-slate-300">
-                                                {page}
-                                            </span>
-                                        )}
-                                    </li>
-                                 ))}
-                                <li>
-                                    <button
-                                         onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                        disabled={currentPage === totalPages}
-                                        className="flex items-center justify-center px-2 h-8 leading-tight text-slate-500 bg-white border border-slate-300 rounded-r-lg hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                    >
-                                        <ChevronRightIcon />
-                                    </button>
-                                </li>
-                            </ul>
-                        </nav>
-                    )}
+                {/* Pagination */}
+                <div className="bg-slate-50/50 px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+                    <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                        <div>
+                            <p className="text-sm text-slate-500">
+                                Affichage de <span className="font-medium text-slate-900">{Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)}</span> à <span className="font-medium text-slate-900">{Math.min(currentPage * itemsPerPage, totalItems)}</span> sur <span className="font-medium text-slate-900">{totalItems}</span> résultats
+                            </p>
+                        </div>
+                        <div>
+                            <nav className="relative z-0 inline-flex rounded-xl shadow-sm -space-x-px" aria-label="Pagination">
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className="relative inline-flex items-center px-3 py-2 rounded-l-xl border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <span className="sr-only">Précédent</span>
+                                    <ChevronLeftIcon className="h-4 w-4" aria-hidden="true" />
+                                </button>
+                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                    // Logic to show window of pages around current page could be added here
+                                    // For simplicity, showing first 5 or logic needs to be more complex for many pages
+                                    let pageNum = i + 1;
+                                    if (totalPages > 5 && currentPage > 3) {
+                                        pageNum = currentPage - 2 + i;
+                                    }
+                                    if (pageNum > totalPages) return null;
+
+                                    return (
+                                        <button
+                                            key={pageNum}
+                                            onClick={() => setCurrentPage(pageNum)}
+                                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${currentPage === pageNum
+                                                ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                                                : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-50'
+                                                } transition-colors`}
+                                        >
+                                            {pageNum}
+                                        </button>
+                                    );
+                                })}
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={currentPage === totalPages}
+                                    className="relative inline-flex items-center px-3 py-2 rounded-r-xl border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <span className="sr-only">Suivant</span>
+                                    <ChevronRightIcon className="h-4 w-4" aria-hidden="true" />
+                                </button>
+                            </nav>
+                        </div>
+                    </div>
                 </div>
-                )}
             </div>
         </div>
     );

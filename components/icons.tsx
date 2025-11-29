@@ -167,6 +167,12 @@ export const XCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     </Icon>
 );
 
+export const ExclamationCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <Icon {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+    </Icon>
+);
+
 // --- Sub-menu Icons ---
 export const ListIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (<Icon {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h7.5M8.25 12h7.5m-7.5 5.25h7.5" /></Icon>);
 export const CashIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (<Icon {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /></Icon>);
@@ -195,6 +201,25 @@ export const TagIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (<Ico
 export const CubeIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (<Icon {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></Icon>);
 export const MapIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (<Icon {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.5-10.5v1.5m-6.75-3v1.5m-6.75-3v1.5m19.5 0v1.5m-6.75-1.5v1.5m-6.75-1.5v1.5M9 15l-3 3m0 0l-3-3m3 3V6.75m6 6l3 3m0 0l3-3m-3 3V9.75" /></Icon>);
 
+// --- Export Icons ---
+export const DownloadIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <Icon {...props} viewBox="0 0 20 20" fill="currentColor">
+    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+  </Icon>
+);
+
+export const DocumentDownloadIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <Icon {...props} viewBox="0 0 20 20" fill="currentColor">
+    <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd" />
+  </Icon>
+);
+
+export const PrinterIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <Icon {...props} viewBox="0 0 20 20" fill="currentColor">
+    <path fillRule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z" clipRule="evenodd" />
+  </Icon>
+);
+
 // --- New Icons for Actions ---
 export const EditIconAlt: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <Icon {...props} className={`w-5 h-5 ${props.className || ''}`}>
@@ -207,5 +232,11 @@ export const DeleteIconAlt: React.FC<React.SVGProps<SVGSVGElement>> = (props) =>
     <Icon {...props} className={`w-5 h-5 ${props.className || ''}`}>
        <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18m-2 0v14c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V6m3 0V4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v2" />
        <path strokeLinecap="round" strokeLinejoin="round" d="M10 11v6m4-6v6" />
+    </Icon>
+);
+
+export const RefreshIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <Icon {...props} className={`w-5 h-5 ${props.className || ''}`}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
     </Icon>
 );

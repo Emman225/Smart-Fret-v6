@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { useTypeDossiers } from '../../context/AppContext';
@@ -46,7 +46,11 @@ const SortableHeader: React.FC<{
 
 
 const TypeDossierListPage: React.FC = () => {
-    const { typeDossiers, deleteTypeDossier } = useTypeDossiers();
+    const { typeDossiers, deleteTypeDossier, fetchTypeDossiers } = useTypeDossiers();
+
+    useEffect(() => {
+        fetchTypeDossiers();
+    }, [fetchTypeDossiers]);
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTypeDossierId, setEditingTypeDossierId] = useState<string | null>(null);

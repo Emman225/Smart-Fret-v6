@@ -1,11 +1,13 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { useNavires, useArmateurs } from '../../context/AppContext';
 import { AddIcon, SortIcon, SortAscIcon, SortDescIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ShipIcon, EditIconAlt, DeleteIconAlt } from '../../components/icons';
+import { RefreshIcon } from '../../components/icons';
 import { Navire } from '../../types';
 import NavireFormModal from './NavireFormModal';
+import { mockNavires } from '../../data/mockData';
 
 const MySwal = withReactContent(Swal);
 
@@ -46,8 +48,15 @@ const SortableHeader: React.FC<{
 
 
 const NavireListPage: React.FC = () => {
-    const { navires, deleteNavire } = useNavires();
-    const { getArmateurById } = useArmateurs();
+    const { navires, deleteNavire, fetchNavires } = useNavires();
+    const { armateurs, getArmateurById } = useArmateurs();
+    
+    // Log pour déboguer
+    console.log('=== Début du rendu de NavireListPage ===');
+    console.log('Navires chargés dans le contexte:', navires);
+    console.log('Armateurs chargés dans le contexte:', armateurs);
+    console.log('Données de localStorage - navires:', localStorage.getItem('navires'));
+    console.log('Données de localStorage - armateurs:', localStorage.getItem('armateurs'));
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingNavireId, setEditingNavireId] = useState<string | null>(null);
@@ -67,11 +76,32 @@ const NavireListPage: React.FC = () => {
         setEditingNavireId(null);
     };
 
+    useEffect(() => {
+        fetchNavires();
+    }, [fetchNavires]);
+
     const processedNavires = useMemo(() => {
-        let naviresWithArmateur = navires.map(navire => ({
-            ...navire,
-            armateurName: getArmateurById(navire.armateurId)?.armateur || 'N/A'
-        }));
+        console.log('=== Début du traitement des navires ===');
+        console.log('Navires à traiter:', navires);
+        console.log('Armateurs disponibles:', armateurs);
+        
+        if (!navires || navires.length === 0) {
+            console.warn('Aucun navire trouvé dans le contexte');
+            return [];
+        }
+        
+        let naviresWithArmateur = navires.map(navire => {
+            const fromApiName = (navire as any).armateurName as string | undefined;
+            const armateur = getArmateurById(navire.armateurId);
+            const resolvedName = fromApiName && fromApiName.trim().length > 0
+                ? fromApiName
+                : (armateur?.armateur || `Inconnu (ID: ${navire.armateurId})`);
+
+            return {
+                ...navire,
+                armateurName: resolvedName
+            };
+        });
 
 
         if (searchTerm) {
@@ -95,6 +125,7 @@ const NavireListPage: React.FC = () => {
             });
         }
 
+        console.log('Navires traités avec armateurs:', naviresWithArmateur);
         return naviresWithArmateur;
     }, [navires, getArmateurById, searchTerm, sortConfig]);
     
@@ -125,9 +156,9 @@ const NavireListPage: React.FC = () => {
             cancelButtonText: 'Annuler',
             background: '#334155',
             color: '#f8fafc'
-        }).then((result) => {
+        }).then(async (result) => {
             if (result.isConfirmed) {
-                deleteNavire(id);
+                await deleteNavire(id);
                 MySwal.fire({
                    title: 'Supprimé !',
                    text: "Le navire a été supprimé avec succès.",
@@ -173,13 +204,16 @@ const NavireListPage: React.FC = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold text-slate-800">Gestion des Navires</h1>
-                <button
-                    onClick={() => handleOpenModal()}
-                    className="flex items-center bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-all duration-300 text-sm font-medium shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-                >
-                    <AddIcon />
-                    Ajouter un navire
-                </button>
+                <div className="flex space-x-2">
+                    
+                    <button
+                        onClick={() => handleOpenModal()}
+                        className="flex items-center bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-all duration-300 text-sm font-medium shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                    >
+                        <AddIcon />
+                        Ajouter un navire
+                    </button>
+                </div>
             </div>
 
             <div className="bg-white rounded-xl shadow-xl border border-slate-200">

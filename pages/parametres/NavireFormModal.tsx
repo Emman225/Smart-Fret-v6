@@ -2,7 +2,8 @@
 import React, { useEffect } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { Navire } from '../../types';
-import { useNavires, useArmateurs } from '../../context/AppContext';
+import { useNavires } from '../../context/AppContext';
+import { useArmateurs } from '../../context/ArmateurContext';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { XCircleIcon } from '../../components/icons';
@@ -19,7 +20,7 @@ interface NavireFormModalProps {
 
 const NavireFormModal: React.FC<NavireFormModalProps> = ({ isOpen, onClose, navireId }) => {
     const { getNavireById, addNavire, updateNavire } = useNavires();
-    const { armateurs } = useArmateurs();
+    const { armateurs, fetchArmateurs } = useArmateurs();
     const isEditing = Boolean(navireId);
 
     const { register, handleSubmit, reset, formState: { errors } } = useForm<NavireFormInputs>({
@@ -30,6 +31,9 @@ const NavireFormModal: React.FC<NavireFormModalProps> = ({ isOpen, onClose, navi
     });
 
     useEffect(() => {
+        if (isOpen) {
+            fetchArmateurs();
+        }
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
                 onClose();
@@ -57,23 +61,32 @@ const NavireFormModal: React.FC<NavireFormModalProps> = ({ isOpen, onClose, navi
         };
     }, [isOpen, navireId, isEditing, getNavireById, reset, onClose]);
 
-    const onSubmit: SubmitHandler<NavireFormInputs> = (data) => {
-        if (isEditing && navireId) {
-            updateNavire({ ...data, id: navireId });
-        } else {
-            addNavire(data);
+    const onSubmit: SubmitHandler<NavireFormInputs> = async (data) => {
+        try {
+            if (isEditing && navireId) {
+                await updateNavire({ ...data, id: navireId });
+            } else {
+                await addNavire(data);
+            }
+            onClose();
+            MySwal.fire({
+                title: 'Succès !',
+                text: `Le navire a été ${isEditing ? 'mis à jour' : 'créé'} avec succès.`,
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false,
+                background: '#334155',
+                color: '#f8fafc'
+            });
+        } catch (error: any) {
+            MySwal.fire({
+                title: 'Erreur',
+                text: error?.message || 'Une erreur est survenue lors de l\'enregistrement du navire',
+                icon: 'error',
+                background: '#334155',
+                color: '#f8fafc'
+            });
         }
-        
-        onClose();
-        MySwal.fire({
-            title: 'Succès !',
-            text: `Le navire a été ${isEditing ? 'mis à jour' : 'créé'} avec succès.`,
-            icon: 'success',
-            timer: 2000,
-            showConfirmButton: false,
-            background: '#334155',
-            color: '#f8fafc'
-        });
     };
 
     const FieldWrapper: React.FC<{ label: string; htmlFor: keyof NavireFormInputs; error?: string; children: React.ReactNode }> = ({ label, htmlFor, error, children }) => (
@@ -115,11 +128,14 @@ const NavireFormModal: React.FC<NavireFormModalProps> = ({ isOpen, onClose, navi
                                 className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${errors.armateurId ? 'border-red-500 focus:ring-red-400' : 'border-slate-300 focus:ring-primary'}`}
                             >
                                 <option value="">Sélectionner un armateur</option>
-                                {armateurs.sort((a, b) => a.armateur.localeCompare(b.armateur)).map(armateur => (
-                                    <option key={armateur.id} value={armateur.id}>
-                                        {armateur.armateur}
-                                    </option>
-                                ))}
+                                {armateurs
+                                    .slice()
+                                    .sort((a, b) => a.NomArmat.localeCompare(b.NomArmat))
+                                    .map(armateur => (
+                                        <option key={armateur.IdArmat} value={String(armateur.IdArmat)}>
+                                            {armateur.NomArmat}
+                                        </option>
+                                    ))}
                             </select>
                         </FieldWrapper>
 
